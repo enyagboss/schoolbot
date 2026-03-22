@@ -123,14 +123,16 @@ def get_message_by_id(msg_id):
     row = cur.fetchone()
     conn.close()
     if row:
-        return {
-            "user_id": row[0],
-            "message": row[1],
-            "contact": row[2],
-            "is_anonymous": row[3],
-            "answered": row[4]
-        }
+        return {"user_id": row[0], "message": row[1], "contact": row[2], "is_anonymous": row[3], "answered": row[4]}
     return None
+
+def mark_message_answered(msg_id, answer_text):
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    cur.execute("UPDATE psychologist_messages SET answered = 1, answer_text = ?, answer_timestamp = ? WHERE id = ?",
+                (answer_text, datetime.datetime.now().isoformat(), msg_id))
+    conn.commit()
+    conn.close()
 
 def get_unanswered_messages():
     conn = sqlite3.connect(DB_NAME)
