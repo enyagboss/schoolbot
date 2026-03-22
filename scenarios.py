@@ -16,7 +16,6 @@ QUOTES = [
 ]
 
 def safe_json_loads(temp_data):
-    """Безопасная загрузка JSON с обработкой ошибок"""
     if not temp_data or temp_data == "":
         return None
     try:
@@ -25,9 +24,10 @@ def safe_json_loads(temp_data):
         return None
 
 def process_scenario(user_id, message, state, temp_data, notify_func=None, save_func=None):
-    """Маршрутизация по состояниям с передачей функций"""
     if state == "stress_test":
         return stress_test(user_id, message, temp_data, notify_func, save_func)
+    elif state == "stress_breathing":
+        return stress_breathing(user_id, message, temp_data, notify_func, save_func)
     elif state == "conflict_help":
         return conflict_help(user_id, message, temp_data, notify_func, save_func)
     elif state == "motivation_plan":
@@ -70,24 +70,24 @@ def stress_test(user_id, message, temp_data, notify_func=None, save_func=None):
         if data is None:
             set_user(user_id, state="main", temp_data=None)
             return "Произошла ошибка. Давай начнём сначала. Выбери тему в меню.", None
-        
+
         answers = data.get("answers", [])
         index = data.get("index", 0)
         questions = data.get("questions", [])
-        
+
         if not questions:
             set_user(user_id, state="main", temp_data=None)
             return "Произошла ошибка. Давай начнём сначала.", None
-        
+
         if message.lower() not in ["да", "нет"]:
             if index < len(questions):
                 return "Пожалуйста, ответь Да или Нет.", "yes_no"
             else:
                 return "Пожалуйста, ответь Да или Нет.", None
-        
+
         answers.append(message.lower())
         index += 1
-        
+
         if index < len(questions):
             data["answers"] = answers
             data["index"] = index
@@ -96,16 +96,32 @@ def stress_test(user_id, message, temp_data, notify_func=None, save_func=None):
         else:
             yes_count = sum(1 for a in answers if a == "да")
             if yes_count >= 3:
-                result = ("По твоим ответам возможно высокий уровень стресса.\n"
-                          "Рекомендую попробовать техники расслабления: глубокое дыхание, прогулку.\n"
-                          "Хочешь, я расскажу как делать дыхательное упражнение?")
-                set_user(user_id, state="main", temp_data=None)
-                return result, "yes_no"
+                # Сохраняем результат, но не сбрасываем состояние
+                set_user(user_id, state="stress_breathing", temp_data=None)
+                return ("По твоим ответам возможно высокий уровень стресса.\n"
+                        "Рекомендую попробовать техники расслабления: глубокое дыхание, прогулку.\n"
+                        "Хочешь, я расскажу как делать дыхательное упражнение?"), "yes_no"
             else:
-                result = ("Отлично! Ты хорошо справляешься со стрессом.\n"
-                          "Продолжай в том же духе и не забывай отдыхать.")
                 set_user(user_id, state="main", temp_data=None)
-                return result, None
+                return ("Отлично! Ты хорошо справляешься со стрессом.\n"
+                        "Продолжай в том же духе и не забывай отдыхать."), None
+
+# -------------------- Обработка ответа про дыхание --------------------
+def stress_breathing(user_id, message, temp_data, notify_func=None, save_func=None):
+    if message.lower() == "да":
+        breathing = (
+            "Вот простое упражнение:\n\n"
+            "1. Сядь удобно и закрой глаза.\n"
+            "2. Медленно вдохни через нос на 4 секунды.\n"
+            "3. Задержи дыхание на 7 секунд.\n"
+            "4. Медленно выдохни через рот на 8 секунд.\n\n"
+            "Повтори 3 раза. Это поможет успокоиться и снять напряжение."
+        )
+        set_user(user_id, state="main", temp_data=None)
+        return breathing, None
+    else:
+        set_user(user_id, state="main", temp_data=None)
+        return "Хорошо. Если захочешь узнать позже, выбери 'Стресс' снова.", None
 
 # -------------------- Конфликты --------------------
 def conflict_help(user_id, message, temp_data, notify_func=None, save_func=None):
@@ -118,9 +134,9 @@ def conflict_help(user_id, message, temp_data, notify_func=None, save_func=None)
         if data is None:
             set_user(user_id, state="main", temp_data=None)
             return "Произошла ошибка. Давай начнём сначала.", None
-        
+
         step = data.get("step", 1)
-        
+
         if step == 1:
             data["description"] = message
             data["step"] = 2
@@ -163,9 +179,9 @@ def motivation_plan(user_id, message, temp_data, notify_func=None, save_func=Non
         if data is None:
             set_user(user_id, state="main", temp_data=None)
             return "Произошла ошибка. Давай начнём сначала.", None
-        
+
         step = data.get("step", 1)
-        
+
         if step == 1:
             if message.lower() == "да":
                 data["step"] = 2
@@ -217,9 +233,9 @@ def healthy_plan(user_id, message, temp_data, notify_func=None, save_func=None):
         if data is None:
             set_user(user_id, state="main", temp_data=None)
             return "Произошла ошибка. Давай начнём сначала.", None
-        
+
         step = data.get("step", 1)
-        
+
         if step == 1:
             if message.lower() == "да":
                 data["step"] = 2
@@ -269,9 +285,9 @@ def anonymous_message(user_id, message, temp_data, notify_func=None, save_func=N
         if data is None:
             set_user(user_id, state="main", temp_data=None)
             return "Произошла ошибка. Давай начнём сначала. Выбери тему в меню.", None
-        
+
         step = data.get("step", 1)
-        
+
         if step == 1:
             data["message"] = message
             data["step"] = 2
@@ -284,11 +300,10 @@ def anonymous_message(user_id, message, temp_data, notify_func=None, save_func=N
             if "message" not in data:
                 set_user(user_id, state="main", temp_data=None)
                 return "Произошла ошибка. Пожалуйста, начни заново, выбрав 'Психолог' в меню.", None
-            
+
             contact = None if message.lower() == "анонимно" else message
             is_anonymous = (contact is None)
-            
-            # Сохраняем сообщение
+
             msg_id = None
             if save_func:
                 try:
@@ -296,14 +311,13 @@ def anonymous_message(user_id, message, temp_data, notify_func=None, save_func=N
                     print(f"✅ Сообщение психологу сохранено (ID: {msg_id})")
                 except Exception as e:
                     print(f"❌ Ошибка сохранения: {e}")
-            
-            # Уведомляем психолога
+
             if notify_func and msg_id:
                 try:
                     notify_func(user_id, data["message"], contact, is_anonymous, msg_id)
                 except Exception as e:
                     print(f"❌ Ошибка уведомления: {e}")
-            
+
             set_user(user_id, state="main", temp_data=None)
             return ("✅ Твоё сообщение отправлено психологу!\n\n"
                     "Психолог свяжется с тобой в ближайшее время.\n\n"
@@ -338,9 +352,9 @@ def organize_plan(user_id, message, temp_data, notify_func=None, save_func=None)
         if data is None:
             set_user(user_id, state="main", temp_data=None)
             return "Произошла ошибка. Давай начнём сначала.", None
-        
+
         step = data.get("step", 1)
-        
+
         if step == 1:
             if message.lower() == "да":
                 data["step"] = 2
@@ -385,9 +399,9 @@ def sleep_reminder(user_id, message, temp_data, notify_func=None, save_func=None
         if data is None:
             set_user(user_id, state="main", temp_data=None)
             return "Произошла ошибка. Давай начнём сначала.", None
-        
+
         step = data.get("step", 1)
-        
+
         if step == 1:
             if message.lower() == "да":
                 data["step"] = 2
@@ -435,9 +449,9 @@ def bad_mood(user_id, message, temp_data, notify_func=None, save_func=None):
         if data is None:
             set_user(user_id, state="main", temp_data=None)
             return "Произошла ошибка. Давай начнём сначала.", None
-        
+
         step = data.get("step", 1)
-        
+
         if step == 1:
             if message.lower() == "да":
                 data["step"] = 2
@@ -455,7 +469,7 @@ def bad_mood(user_id, message, temp_data, notify_func=None, save_func=None):
             data["choice"] = message
             data["step"] = 3
             set_user(user_id, temp_data=json.dumps(data))
-            
+
             if message.lower() == "прогулка":
                 return ("Отличный выбор! Свежий воздух и движение помогают улучшить настроение.\n"
                         "Постарайся выйти на улицу хотя бы на 10-15 минут. Если хочешь, могу напомнить об этом позже."), "yes_no"
@@ -492,9 +506,9 @@ def bullying(user_id, message, temp_data, notify_func=None, save_func=None):
         if data is None:
             set_user(user_id, state="main", temp_data=None)
             return "Произошла ошибка. Давай начнём сначала.", None
-        
+
         step = data.get("step", 1)
-        
+
         if step == 1:
             if message.lower() == "да":
                 data["step"] = 2
@@ -533,9 +547,9 @@ def anxiety(user_id, message, temp_data, notify_func=None, save_func=None):
         if data is None:
             set_user(user_id, state="main", temp_data=None)
             return "Произошла ошибка. Давай начнём сначала.", None
-        
+
         step = data.get("step", 1)
-        
+
         if step == 1:
             if message.lower() == "да":
                 data["step"] = 2
@@ -574,9 +588,9 @@ def self_organization(user_id, message, temp_data, notify_func=None, save_func=N
         if data is None:
             set_user(user_id, state="main", temp_data=None)
             return "Произошла ошибка. Давай начнём сначала.", None
-        
+
         step = data.get("step", 1)
-        
+
         if step == 1:
             if message.lower() == "да":
                 data["step"] = 2
@@ -601,7 +615,7 @@ def self_organization(user_id, message, temp_data, notify_func=None, save_func=N
         elif step == 3:
             current = data["current_task"]
             data["tasks"].append(message)
-            
+
             if current < data["num_tasks"]:
                 data["current_task"] += 1
                 set_user(user_id, temp_data=json.dumps(data))
