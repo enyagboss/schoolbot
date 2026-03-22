@@ -96,6 +96,7 @@ def stress_test(user_id, message, temp_data, notify_func=None, save_func=None):
         else:
             yes_count = sum(1 for a in answers if a == "да")
             if yes_count >= 3:
+                # Переходим в состояние ожидания ответа про дыхание
                 set_user(user_id, state="stress_breathing", temp_data=None)
                 return ("По твоим ответам возможно высокий уровень стресса.\n"
                         "Рекомендую попробовать техники расслабления: глубокое дыхание, прогулку.\n"
@@ -105,7 +106,7 @@ def stress_test(user_id, message, temp_data, notify_func=None, save_func=None):
                 return ("Отлично! Ты хорошо справляешься со стрессом.\n"
                         "Продолжай в том же духе и не забывай отдыхать."), None
 
-# -------------------- Ответ на вопрос о дыхании --------------------
+# -------------------- Обработка ответа про дыхание --------------------
 def stress_breathing(user_id, message, temp_data, notify_func=None, save_func=None):
     if message.lower() == "да":
         breathing = (
