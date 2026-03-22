@@ -59,7 +59,6 @@ def notify_psychologist(user_id, message_text, contact, is_anonymous, msg_id):
             text += f"👤 Отправитель: Аноним\n"
         else:
             text += f"👤 Отправитель: Пользователь {user_id}\n"
-        # Контакт показываем только для неанонимных обращений
         if not is_anonymous and contact:
             text += f"📞 Контакт для связи: {contact}\n"
         text += f"\n💬 Текст:\n{message_text}\n\n"
@@ -77,7 +76,6 @@ def contains_bad_words(text):
 last_processed = defaultdict(float)
 
 def handle_message(user_id, text, event_id=None):
-    # Защита от дублирования сообщений (2 секунды)
     key = (user_id, text)
     now = time.time()
     if now - last_processed[key] < 2:
@@ -85,7 +83,7 @@ def handle_message(user_id, text, event_id=None):
         return
     last_processed[key] = now
 
-    # ========== СПЕЦИАЛЬНАЯ ОБРАБОТКА ДЛЯ ПСИХОЛОГА ==========
+    # ========== ПСИХОЛОГ ==========
     if PSYCHOLOGIST_ID and user_id == PSYCHOLOGIST_ID:
         # Кнопка "Список"
         if text == "Список":
@@ -113,8 +111,8 @@ def handle_message(user_id, text, event_id=None):
                 "1. Чтобы ответить на обращение, используйте команду:\n"
                 "   ответ <ID> <текст ответа>\n"
                 "   Пример: ответ 1 Спасибо за ваше сообщение, мы свяжемся с вами.\n\n"
-                "2. Если обращение анонимное, вы также можете ответить — пользователь получит сообщение от бота.\n\n"
-                "3. Если обращение анонимное и оставлен контакт, вы можете ответить через бота или напрямую.\n\n"
+                "2. Вы можете отвечать на любые обращения, включая анонимные. Пользователь получит ответ от бота.\n\n"
+                "3. Если обращение анонимное, вы не видите имя и контакт пользователя.\n\n"
                 "4. Чтобы просмотреть список неотвеченных обращений, нажмите кнопку 'Список'.\n\n"
                 "5. После ответа обращение будет помечено как отвеченное и исчезнет из списка.\n\n"
                 "❗ Важно: вы должны быть подписаны на сообщения бота, чтобы получать уведомления о новых обращениях."
@@ -142,10 +140,9 @@ def handle_message(user_id, text, event_id=None):
                 return
 
             user_to_send = msg_data["user_id"]
-            is_anonymous = msg_data["is_anonymous"]
-
+            # Отправляем ответ всегда, независимо от анонимности
             try:
-                if is_anonymous:
+                if msg_data["is_anonymous"]:
                     vk.messages.send(
                         user_id=user_to_send,
                         message=f"📩 Ответ психолога на ваше анонимное обращение #{msg_id}:\n\n{answer_text}",
@@ -168,14 +165,13 @@ def handle_message(user_id, text, event_id=None):
         send_msg(user_id, "Используй кнопки меню или команду 'ответ <id> <текст>'", keyboard=psychologist_keyboard())
         return
 
-    # ========== ОБРАБОТКА ДЛЯ ОБЫЧНЫХ ПОЛЬЗОВАТЕЛЕЙ ==========
+    # ========== ОБЫЧНЫЕ ПОЛЬЗОВАТЕЛИ ==========
     # Отмена
     if text.lower() in ["отмена", "cancel", "стоп", "выйти"]:
         clear_user_state(user_id)
         send_msg(user_id, "❌ Действие отменено. Возвращаюсь в главное меню.", keyboard=main_keyboard())
         return
 
-    # Нежелательная лексика
     if contains_bad_words(text):
         send_msg(user_id, "Пожалуйста, избегай нецензурной лексики. Я здесь, чтобы помогать.")
         return
@@ -188,7 +184,7 @@ def handle_message(user_id, text, event_id=None):
     state = user_data["state"]
     temp_data = user_data["temp_data"]
 
-    # Если пользователь в сценарии
+    # Сценарии
     if state != "main":
         try:
             response, keyboard_type = scenarios.process_scenario(
@@ -312,10 +308,8 @@ def main():
                 if event.type == VkEventType.MESSAGE_NEW and event.to_me:
                     user_id = event.user_id
                     text = event.text.strip()
-                    # Получаем уникальный ID события (если есть)
-                    event_id = getattr(event, 'raw', {}).get('event_id', None)
                     print(f"📩 Получено сообщение от {user_id}: {text[:50]}")
-                    handle_message(user_id, text, event_id)
+                    handle_message(user_id, text)
         except Exception as e:
             print(f"❌ Ошибка в основном цикле: {e}")
             traceback.print_exc()
