@@ -7,6 +7,7 @@ DB_NAME = "bot_database.db"
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
+    # Таблица пользователей
     cur.execute('''
         CREATE TABLE IF NOT EXISTS users (
             user_id INTEGER PRIMARY KEY,
@@ -17,6 +18,7 @@ def init_db():
             last_quote_date TEXT
         )
     ''')
+    # Таблица сообщений психологу
     cur.execute('''
         CREATE TABLE IF NOT EXISTS psychologist_messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -30,6 +32,7 @@ def init_db():
             answer_timestamp TEXT
         )
     ''')
+    # Таблица напоминаний
     cur.execute('''
         CREATE TABLE IF NOT EXISTS reminders (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -39,6 +42,7 @@ def init_db():
             data TEXT
         )
     ''')
+    # Таблица планов
     cur.execute('''
         CREATE TABLE IF NOT EXISTS plans (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -123,16 +127,14 @@ def get_message_by_id(msg_id):
     row = cur.fetchone()
     conn.close()
     if row:
-        return {"user_id": row[0], "message": row[1], "contact": row[2], "is_anonymous": row[3], "answered": row[4]}
+        return {
+            "user_id": row[0],
+            "message": row[1],
+            "contact": row[2],
+            "is_anonymous": row[3],
+            "answered": row[4]
+        }
     return None
-
-def mark_message_answered(msg_id, answer_text):
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-    cur.execute("UPDATE psychologist_messages SET answered = 1, answer_text = ?, answer_timestamp = ? WHERE id = ?",
-                (answer_text, datetime.datetime.now().isoformat(), msg_id))
-    conn.commit()
-    conn.close()
 
 def get_unanswered_messages():
     conn = sqlite3.connect(DB_NAME)
@@ -151,6 +153,14 @@ def mark_message_answered(msg_id, answer_text):
     )
     conn.commit()
     conn.close()
+
+def clear_user_state(user_id):
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    cur.execute("UPDATE users SET state = 'main', temp_data = '' WHERE user_id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+    print(f"🔄 Состояние пользователя {user_id} сброшено")
 
 def add_reminder(user_id, remind_time, action, data=None):
     conn = sqlite3.connect(DB_NAME)
@@ -189,10 +199,13 @@ def save_plan(user_id, plan_type, tasks):
     conn.commit()
     conn.close()
 
-def clear_user_state(user_id):
+def get_user_plans(user_id, plan_type=None):
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
-    cur.execute("UPDATE users SET state = 'main', temp_data = '' WHERE user_id = ?", (user_id,))
-    conn.commit()
+    if plan_type:
+        cur.execute("SELECT id, tasks, created_at FROM plans WHERE user_id = ? AND plan_type = ? ORDER BY created_at DESC", (user_id, plan_type))
+    else:
+        cur.execute("SELECT id, plan_type, tasks, created_at FROM plans WHERE user_id = ? ORDER BY created_at DESC", (user_id,))
+    rows = cur.fetchall()
     conn.close()
-    print(f"🔄 Состояние пользователя {user_id} сброшено")
+    return rows
