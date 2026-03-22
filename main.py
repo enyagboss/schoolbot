@@ -23,7 +23,16 @@ vk_session = vk_api.VkApi(token=VK_TOKEN)
 vk = vk_session.get_api()
 longpoll = VkLongPoll(vk_session)
 
-QUOTES = [ ... ]  # без изменений
+QUOTES = [
+    "Каждый день — новая возможность стать лучше.",
+    "Не бойся трудностей — они делают тебя сильнее.",
+    "Ты способен на большее, чем думаешь.",
+    "Улыбка — самый простой способ изменить мир вокруг.",
+    "Верь в себя и свои силы.",
+    "Не сравнивай себя с другими — сравнивай себя с собой вчерашним.",
+    "Маленькие шаги ведут к большим победам.",
+    "Твоя единственная граница — это ты сам."
+]
 
 def send_msg(user_id, text, keyboard=None):
     try:
@@ -50,7 +59,8 @@ def notify_psychologist(user_id, message_text, contact, is_anonymous, msg_id):
             text += f"👤 Отправитель: Аноним\n"
         else:
             text += f"👤 Отправитель: Пользователь {user_id}\n"
-        if contact:
+        # Контакт для анонимных не показываем
+        if not is_anonymous and contact:
             text += f"📞 Контакт для связи: {contact}\n"
         text += f"\n💬 Текст:\n{message_text}\n\n"
         text += f"📅 {datetime.datetime.now().strftime('%d.%m.%Y %H:%M')}\n"
@@ -64,7 +74,6 @@ def contains_bad_words(text):
             return True
     return False
 
-# Словарь для защиты от дублей
 last_processed = defaultdict(float)
 
 def handle_message(user_id, text):
@@ -91,7 +100,7 @@ def handle_message(user_id, text):
                     msg += "(Аноним)"
                 else:
                     msg += f"(пользователь {m[1]})"
-                if m[3]:
+                if not m[4] and m[3]:
                     msg += f" Контакт: {m[3]}"
                 msg += f"\n{m[2][:100]}\n\n"
             send_msg(user_id, msg, keyboard=psychologist_keyboard())
@@ -104,8 +113,8 @@ def handle_message(user_id, text):
                 "1. Чтобы ответить на обращение, используйте команду:\n"
                 "   ответ <ID> <текст ответа>\n"
                 "   Пример: ответ 1 Спасибо за ваше сообщение, мы свяжемся с вами.\n\n"
-                "2. Если обращение анонимное, но оставлен контакт (email/телефон), ответьте пользователю напрямую, а затем отметьте обращение как отвеченное командой выше.\n\n"
-                "3. Если обращение анонимное и без контакта, ответить невозможно.\n\n"
+                "2. Если обращение анонимное, вы также можете ответить — пользователь получит сообщение от бота.\n\n"
+                "3. Если обращение анонимное и оставлен контакт, вы можете ответить через бота или напрямую.\n\n"
                 "4. Чтобы просмотреть список неотвеченных обращений, нажмите кнопку 'Список'.\n\n"
                 "5. После ответа обращение будет помечено как отвеченное и исчезнет из списка.\n\n"
                 "❗ Важно: вы должны быть подписаны на сообщения бота, чтобы получать уведомления о новых обращениях."
@@ -128,30 +137,26 @@ def handle_message(user_id, text):
 
             user_to_send = msg_data["user_id"]
             is_anonymous = msg_data["is_anonymous"]
-            contact = msg_data["contact"]
 
-            if not is_anonymous:
-                try:
+            # Отправляем ответ всегда, независимо от анонимности
+            try:
+                if is_anonymous:
+                    vk.messages.send(
+                        user_id=user_to_send,
+                        message=f"📩 Ответ психолога на ваше анонимное обращение #{msg_id}:\n\n{answer_text}",
+                        random_id=0
+                    )
+                else:
                     vk.messages.send(
                         user_id=user_to_send,
                         message=f"📩 Ответ психолога на ваше обращение #{msg_id}:\n\n{answer_text}",
                         random_id=0
                     )
-                    send_msg(user_id, f"✅ Ответ отправлен пользователю (ID: {user_to_send}).", keyboard=psychologist_keyboard())
-                    mark_message_answered(msg_id, answer_text)
-                    send_msg(user_id, f"✅ Обращение #{msg_id} отмечено как отвеченное.", keyboard=psychologist_keyboard())
-                except Exception as e:
-                    send_msg(user_id, f"❌ Не удалось отправить ответ пользователю: {e}", keyboard=psychologist_keyboard())
-                    return
-            else:
-                if contact:
-                    send_msg(user_id, f"ℹ️ Обращение #{msg_id} анонимное. Контакт для связи: {contact}\n"
-                                      f"Пожалуйста, свяжитесь с пользователем напрямую.\n"
-                                      f"После этого отметьте обращение как отвеченное командой 'ответ {msg_id} [текст]'.", keyboard=psychologist_keyboard())
-                    # Не отмечаем автоматически
-                else:
-                    send_msg(user_id, f"❌ Обращение #{msg_id} анонимно и без контакта. Ответить невозможно.", keyboard=psychologist_keyboard())
-                    return
+                send_msg(user_id, f"✅ Ответ отправлен пользователю.", keyboard=psychologist_keyboard())
+                mark_message_answered(msg_id, answer_text)
+                send_msg(user_id, f"✅ Обращение #{msg_id} отмечено как отвеченное.", keyboard=psychologist_keyboard())
+            except Exception as e:
+                send_msg(user_id, f"❌ Не удалось отправить ответ: {e}", keyboard=psychologist_keyboard())
             return
 
         # Если ничего не подошло
