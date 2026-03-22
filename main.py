@@ -126,9 +126,15 @@ def handle_message(user_id, text):
         if match:
             msg_id = int(match.group(1))
             answer_text = match.group(2).strip()
+            # Проверяем, что ID есть в списке неотвеченных
+            unanswered = get_unanswered_messages()
+            unanswered_ids = [m[0] for m in unanswered]
+            if msg_id not in unanswered_ids:
+                send_msg(user_id, f"❌ Обращение #{msg_id} не найдено в списке неотвеченных. Актуальные ID: {', '.join(map(str, unanswered_ids)) if unanswered_ids else 'нет'}", keyboard=psychologist_keyboard())
+                return
             msg_data = get_message_by_id(msg_id)
             if not msg_data:
-                send_msg(user_id, f"❌ Обращение #{msg_id} не найдено.", keyboard=psychologist_keyboard())
+                send_msg(user_id, f"❌ Ошибка: обращение #{msg_id} существует в списке, но не найдено в БД. Попробуйте позже.", keyboard=psychologist_keyboard())
                 return
             if msg_data["answered"]:
                 send_msg(user_id, f"⚠️ Обращение #{msg_id} уже было отвечено.", keyboard=psychologist_keyboard())
@@ -154,7 +160,7 @@ def handle_message(user_id, text):
                 mark_message_answered(msg_id, answer_text)
                 send_msg(user_id, f"✅ Обращение #{msg_id} отмечено как отвеченное.", keyboard=psychologist_keyboard())
             except Exception as e:
-                send_msg(user_id, f"❌ Не удалось отправить ответ: {e}", keyboard=psychologist_keyboard())
+                send_msg(user_id, f"❌ Не удалось отправить ответ: {e}\nОбращение осталось в списке неотвеченных.", keyboard=psychologist_keyboard())
             return
 
         # Если ничего не подошло
