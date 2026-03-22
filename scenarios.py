@@ -24,39 +24,38 @@ def safe_json_loads(temp_data):
     except json.JSONDecodeError:
         return None
 
-def process_scenario(user_id, message, state, temp_data, notify_func=None):
-    """Маршрутизация по состояниям"""
+def process_scenario(user_id, message, state, temp_data, notify_func=None, save_func=None):
+    """Маршрутизация по состояниям с передачей функций"""
     if state == "stress_test":
-        return stress_test(user_id, message, temp_data)
+        return stress_test(user_id, message, temp_data, notify_func, save_func)
     elif state == "conflict_help":
-        return conflict_help(user_id, message, temp_data)
+        return conflict_help(user_id, message, temp_data, notify_func, save_func)
     elif state == "motivation_plan":
-        return motivation_plan(user_id, message, temp_data)
+        return motivation_plan(user_id, message, temp_data, notify_func, save_func)
     elif state == "healthy_plan":
-        return healthy_plan(user_id, message, temp_data)
+        return healthy_plan(user_id, message, temp_data, notify_func, save_func)
     elif state == "anonymous_message":
         return anonymous_message(user_id, message, temp_data, notify_func, save_func)
     elif state == "quote_subscribe":
-        return quote_subscribe(user_id, message, temp_data)
+        return quote_subscribe(user_id, message, temp_data, notify_func, save_func)
     elif state == "organize_plan":
-        return organize_plan(user_id, message, temp_data)
+        return organize_plan(user_id, message, temp_data, notify_func, save_func)
     elif state == "sleep_reminder":
-        return sleep_reminder(user_id, message, temp_data)
+        return sleep_reminder(user_id, message, temp_data, notify_func, save_func)
     elif state == "bad_mood":
-        return bad_mood(user_id, message, temp_data)
+        return bad_mood(user_id, message, temp_data, notify_func, save_func)
     elif state == "bullying":
-        return bullying(user_id, message, temp_data)
+        return bullying(user_id, message, temp_data, notify_func, save_func)
     elif state == "anxiety":
-        return anxiety(user_id, message, temp_data)
+        return anxiety(user_id, message, temp_data, notify_func, save_func)
     elif state == "self_organization":
-        return self_organization(user_id, message, temp_data)
+        return self_organization(user_id, message, temp_data, notify_func, save_func)
     else:
         return None, None
 
 # -------------------- Стресс-тест --------------------
-def stress_test(user_id, message, temp_data):
+def stress_test(user_id, message, temp_data, notify_func=None, save_func=None):
     if temp_data is None:
-        # Начинаем тест
         questions = [
             "Ты часто чувствуешь усталость?",
             "Тебе сложно сосредоточиться на уроках?",
@@ -67,7 +66,6 @@ def stress_test(user_id, message, temp_data):
         set_user(user_id, state="stress_test", temp_data=json.dumps({"questions": questions, "answers": [], "index": 0}))
         return questions[0], "yes_no"
     else:
-        # Проверяем валидность temp_data
         data = safe_json_loads(temp_data)
         if data is None:
             set_user(user_id, state="main", temp_data=None)
@@ -81,7 +79,6 @@ def stress_test(user_id, message, temp_data):
             set_user(user_id, state="main", temp_data=None)
             return "Произошла ошибка. Давай начнём сначала.", None
         
-        # Сохраняем ответ (ожидаем "Да" или "Нет")
         if message.lower() not in ["да", "нет"]:
             if index < len(questions):
                 return "Пожалуйста, ответь Да или Нет.", "yes_no"
@@ -97,7 +94,6 @@ def stress_test(user_id, message, temp_data):
             set_user(user_id, temp_data=json.dumps(data))
             return questions[index], "yes_no"
         else:
-            # Подсчёт результатов
             yes_count = sum(1 for a in answers if a == "да")
             if yes_count >= 3:
                 result = ("По твоим ответам возможно высокий уровень стресса.\n"
@@ -112,7 +108,7 @@ def stress_test(user_id, message, temp_data):
                 return result, None
 
 # -------------------- Конфликты --------------------
-def conflict_help(user_id, message, temp_data):
+def conflict_help(user_id, message, temp_data, notify_func=None, save_func=None):
     if temp_data is None:
         set_user(user_id, state="conflict_help", temp_data=json.dumps({"step": 1}))
         return ("Расскажи вкратце, что произошло.\n"
@@ -158,7 +154,7 @@ def conflict_help(user_id, message, temp_data):
         return None, None
 
 # -------------------- Мотивация к учебе --------------------
-def motivation_plan(user_id, message, temp_data):
+def motivation_plan(user_id, message, temp_data, notify_func=None, save_func=None):
     if temp_data is None:
         set_user(user_id, state="motivation_plan", temp_data=json.dumps({"step": 1}))
         return "Хочешь получить совет, как повысить мотивацию к учебе?", "yes_no"
@@ -212,7 +208,7 @@ def motivation_plan(user_id, message, temp_data):
         return None, None
 
 # -------------------- Здоровый образ жизни --------------------
-def healthy_plan(user_id, message, temp_data):
+def healthy_plan(user_id, message, temp_data, notify_func=None, save_func=None):
     if temp_data is None:
         set_user(user_id, state="healthy_plan", temp_data=json.dumps({"step": 1}))
         return "Хочешь узнать, как поддерживать здоровье и хорошее самочувствие?", "yes_no"
@@ -318,7 +314,7 @@ def anonymous_message(user_id, message, temp_data, notify_func=None, save_func=N
             return "Произошла ошибка. Давай начнём сначала. Выбери тему в меню.", None
 
 # -------------------- Подписка на цитаты --------------------
-def quote_subscribe(user_id, message, temp_data):
+def quote_subscribe(user_id, message, temp_data, notify_func=None, save_func=None):
     if temp_data is None:
         set_user(user_id, state="quote_subscribe", temp_data=json.dumps({}))
         return "В какое время ты хочешь получать цитаты? (Утром / Днём / Вечером)", "time"
@@ -333,7 +329,7 @@ def quote_subscribe(user_id, message, temp_data):
             return "Пожалуйста, выбери время: Утром / Днём / Вечером", "time"
 
 # -------------------- Организация учебного пространства --------------------
-def organize_plan(user_id, message, temp_data):
+def organize_plan(user_id, message, temp_data, notify_func=None, save_func=None):
     if temp_data is None:
         set_user(user_id, state="organize_plan", temp_data=json.dumps({"step": 1}))
         return "Хочешь узнать, как организовать своё учебное место для лучшей концентрации?", "yes_no"
@@ -380,7 +376,7 @@ def organize_plan(user_id, message, temp_data):
         return None, None
 
 # -------------------- Здоровый сон --------------------
-def sleep_reminder(user_id, message, temp_data):
+def sleep_reminder(user_id, message, temp_data, notify_func=None, save_func=None):
     if temp_data is None:
         set_user(user_id, state="sleep_reminder", temp_data=json.dumps({"step": 1}))
         return "Хочешь получить советы по здоровому сну и настроить напоминание?", "yes_no"
@@ -406,7 +402,6 @@ def sleep_reminder(user_id, message, temp_data):
                 set_user(user_id, state="main", temp_data=None)
                 return "Хорошо. Если передумаешь, я здесь.", None
         elif step == 2:
-            # Парсим время
             if re.match(r'^\d{1,2}:\d{2}$', message):
                 bedtime = message
                 data["bedtime"] = bedtime
@@ -431,7 +426,7 @@ def sleep_reminder(user_id, message, temp_data):
         return None, None
 
 # -------------------- Помощь при плохом настроении --------------------
-def bad_mood(user_id, message, temp_data):
+def bad_mood(user_id, message, temp_data, notify_func=None, save_func=None):
     if temp_data is None:
         set_user(user_id, state="bad_mood", temp_data=json.dumps({"step": 1}))
         return "Привет! Ты сегодня чувствуешь себя не очень хорошо? Хочешь поговорить или получить совет?", "yes_no"
@@ -488,7 +483,7 @@ def bad_mood(user_id, message, temp_data):
         return None, None
 
 # -------------------- Профилактика буллинга --------------------
-def bullying(user_id, message, temp_data):
+def bullying(user_id, message, temp_data, notify_func=None, save_func=None):
     if temp_data is None:
         set_user(user_id, state="bullying", temp_data=json.dumps({"step": 1}))
         return "Хочешь узнать, как защитить себя и других от буллинга?", "yes_no"
@@ -529,7 +524,7 @@ def bullying(user_id, message, temp_data):
         return None, None
 
 # -------------------- Поддержка при тревоге --------------------
-def anxiety(user_id, message, temp_data):
+def anxiety(user_id, message, temp_data, notify_func=None, save_func=None):
     if temp_data is None:
         set_user(user_id, state="anxiety", temp_data=json.dumps({"step": 1}))
         return "Ты чувствуешь тревогу или беспокойство? Я могу помочь.", "yes_no"
@@ -570,7 +565,7 @@ def anxiety(user_id, message, temp_data):
         return None, None
 
 # -------------------- Трудности с самоорганизацией --------------------
-def self_organization(user_id, message, temp_data):
+def self_organization(user_id, message, temp_data, notify_func=None, save_func=None):
     if temp_data is None:
         set_user(user_id, state="self_organization", temp_data=json.dumps({"step": 1}))
         return "Тебе сложно организовать свое время и справляться с делами? Давай попробуем вместе составить план.", "yes_no"
