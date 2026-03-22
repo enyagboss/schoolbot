@@ -75,7 +75,7 @@ def contains_bad_words(text):
 
 last_processed = defaultdict(float)
 
-def handle_message(user_id, text, event_id=None):
+def handle_message(user_id, text):
     key = (user_id, text)
     now = time.time()
     if now - last_processed[key] < 2:
@@ -98,8 +98,6 @@ def handle_message(user_id, text, event_id=None):
                     msg += "(Аноним)"
                 else:
                     msg += f"(пользователь {m[1]})"
-                if not m[4] and m[3]:
-                    msg += f" Контакт: {m[3]}"
                 msg += f"\n{m[2][:100]}\n\n"
             send_msg(user_id, msg, keyboard=psychologist_keyboard())
             return
