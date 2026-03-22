@@ -21,7 +21,7 @@ init_db()
 vk_session = vk_api.VkApi(token=VK_TOKEN)
 vk = vk_session.get_api()
 longpoll = VkLongPoll(vk_session)
-# Цитаты
+
 QUOTES = [
     "Каждый день — новая возможность стать лучше.",
     "Не бойся трудностей — они делают тебя сильнее.",
@@ -33,7 +33,6 @@ QUOTES = [
     "Твоя единственная граница — это ты сам."
 ]
 
-# ---------------------- Вспомогательные функции ----------------------
 def send_msg(user_id, text, keyboard=None):
     try:
         if keyboard:
@@ -66,7 +65,6 @@ def notify_psychologist(user_id, message_text, contact, is_anonymous, msg_id):
         text += f"\n✍️ Чтобы ответить, используйте команду: ответ {msg_id} [ваш ответ]"
         send_msg(PSYCHOLOGIST_ID, text, keyboard=psychologist_keyboard())
 
-# Фильтр нежелательного контента (простейший)
 BAD_WORDS = ['мат', 'ругательство', 'хуй', 'пизда', 'бля', 'сука']
 
 def contains_bad_words(text):
@@ -75,10 +73,9 @@ def contains_bad_words(text):
             return True
     return False
 
-# ---------------------- Обработчик сообщений ----------------------
 def handle_message(user_id, text):
     # ========== СПЕЦИАЛЬНАЯ ОБРАБОТКА ДЛЯ ПСИХОЛОГА ==========
-        if PSYCHOLOGIST_ID and user_id == PSYCHOLOGIST_ID:
+    if PSYCHOLOGIST_ID and user_id == PSYCHOLOGIST_ID:
         # Кнопка "Список"
         if text == "Список":
             unanswered = get_unanswered_messages()
@@ -117,21 +114,55 @@ def handle_message(user_id, text):
         # Команда "ответ <id> <текст>"
         match = re.match(r'^ответ\s+(\d+)\s+(.+)$', text, re.IGNORECASE | re.DOTALL)
         if match:
-            # ... обработка ответа (без изменений) ...
+            msg_id = int(match.group(1))
+            answer_text = match.group(2).strip()
+            msg_data = get_message_by_id(msg_id)
+            if not msg_data:
+                send_msg(user_id, f"❌ Обращение #{msg_id} не найдено.", keyboard=psychologist_keyboard())
+                return
+            if msg_data["answered"]:
+                send_msg(user_id, f"⚠️ Обращение #{msg_id} уже было отвечено.", keyboard=psychologist_keyboard())
+                return
+
+            user_to_send = msg_data["user_id"]
+            is_anonymous = msg_data["is_anonymous"]
+            contact = msg_data["contact"]
+
+            if not is_anonymous:
+                try:
+                    vk.messages.send(
+                        user_id=user_to_send,
+                        message=f"📩 Ответ психолога на ваше обращение #{msg_id}:\n\n{answer_text}",
+                        random_id=0
+                    )
+                    send_msg(user_id, f"✅ Ответ отправлен пользователю (ID: {user_to_send}).", keyboard=psychologist_keyboard())
+                except Exception as e:
+                    send_msg(user_id, f"❌ Не удалось отправить ответ пользователю: {e}", keyboard=psychologist_keyboard())
+                    return
+            else:
+                if contact:
+                    send_msg(user_id, f"ℹ️ Обращение анонимное. Контакт для связи: {contact}\n"
+                                      f"Пожалуйста, свяжитесь с пользователем напрямую.\n"
+                                      f"После этого обращение будет отмечено как отвеченное.", keyboard=psychologist_keyboard())
+                else:
+                    send_msg(user_id, f"❌ Обращение #{msg_id} анонимно и без контакта. Ответить невозможно.", keyboard=psychologist_keyboard())
+                    return
+
+            mark_message_answered(msg_id, answer_text)
+            send_msg(user_id, f"✅ Обращение #{msg_id} отмечено как отвеченное.", keyboard=psychologist_keyboard())
             return
 
-        # Если ничего не подошло – показываем меню и ВЫХОДИМ
+        # Если ничего не подошло – показываем меню и выходим
         send_msg(user_id, "Используй кнопки меню или команду 'ответ <id> <текст>'", keyboard=psychologist_keyboard())
-        return   # <--- ВАЖНО: завершаем обработку, не идём в общую логику
+        return
 
-    # ========== ОБРАБОТКА ДЛЯ ОБЫЧНЫХ ПОЛЬЗОВАТЕЛЕЙ ==========
+    # ========== ОБЫЧНЫЕ ПОЛЬЗОВАТЕЛИ ==========
     # Отмена
     if text.lower() in ["отмена", "cancel", "стоп", "выйти"]:
         clear_user_state(user_id)
         send_msg(user_id, "❌ Действие отменено. Возвращаюсь в главное меню.", keyboard=main_keyboard())
         return
 
-    # Нежелательная лексика
     if contains_bad_words(text):
         send_msg(user_id, "Пожалуйста, избегай нецензурной лексики. Я здесь, чтобы помогать.")
         return
@@ -144,7 +175,6 @@ def handle_message(user_id, text):
     state = user_data["state"]
     temp_data = user_data["temp_data"]
 
-    # Если пользователь в сценарии
     if state != "main":
         try:
             response, keyboard_type = scenarios.process_scenario(
@@ -228,7 +258,6 @@ def handle_message(user_id, text):
         clear_user_state(user_id)
         send_msg(user_id, "Главное меню:", keyboard=main_keyboard())
     else:
-        # Дополнительные команды
         if text.lower() in ["плохое настроение", "настроение", "грусть"]:
             response, _ = scenarios.bad_mood(user_id, "start", None)
             send_msg(user_id, response, keyboard=yes_no_keyboard())
@@ -244,7 +273,6 @@ def handle_message(user_id, text):
         else:
             send_msg(user_id, "Я не понял. Выбери одну из кнопок или напиши 'Помощь':", keyboard=main_keyboard())
 
-# ---------------------- Главный цикл ----------------------
 def main():
     print("=" * 50)
     print("🤖 Школьный бот-помощник запущен!")
@@ -253,7 +281,7 @@ def main():
     print("=" * 50)
     print("Ожидание сообщений...")
     print("Совет: для выхода из любого диалога напишите 'Отмена'")
-    
+
     while True:
         try:
             for event in longpoll.listen():
