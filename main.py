@@ -59,7 +59,6 @@ def notify_psychologist(user_id, message_text, contact, is_anonymous, msg_id):
             text += f"👤 Отправитель: Аноним\n"
         else:
             text += f"👤 Отправитель: Пользователь {user_id}\n"
-        # Контакт для анонимных не показываем
         if not is_anonymous and contact:
             text += f"📞 Контакт для связи: {contact}\n"
         text += f"\n💬 Текст:\n{message_text}\n\n"
@@ -138,7 +137,6 @@ def handle_message(user_id, text):
             user_to_send = msg_data["user_id"]
             is_anonymous = msg_data["is_anonymous"]
 
-            # Отправляем ответ всегда, независимо от анонимности
             try:
                 if is_anonymous:
                     vk.messages.send(
