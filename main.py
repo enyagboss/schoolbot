@@ -59,7 +59,7 @@ def notify_psychologist(user_id, message_text, contact, is_anonymous, msg_id):
             text += f"👤 Отправитель: Аноним\n"
         else:
             text += f"👤 Отправитель: Пользователь {user_id}\n"
-        # Показываем контакт только если он есть и обращение НЕ анонимное
+        # Контакт показываем только для неанонимных обращений
         if not is_anonymous and contact:
             text += f"📞 Контакт для связи: {contact}\n"
         text += f"\n💬 Текст:\n{message_text}\n\n"
@@ -74,21 +74,18 @@ def contains_bad_words(text):
             return True
     return False
 
-# Защита от дублирования: храним последние обработанные сообщения (user_id, text) и время
 last_processed = defaultdict(float)
-# Также храним последние event_id (если доступны)
-last_event_id = None
 
 def handle_message(user_id, text, event_id=None):
-    # Защита от дублей по тексту (в течение 3 секунд)
+    # Защита от дублирования сообщений (2 секунды)
     key = (user_id, text)
     now = time.time()
-    if now - last_processed[key] < 3:
+    if now - last_processed[key] < 2:
         print(f"⚠️ Пропущен дубль от {user_id}: {text}")
         return
     last_processed[key] = now
 
-    # ========== ПСИХОЛОГ ==========
+    # ========== СПЕЦИАЛЬНАЯ ОБРАБОТКА ДЛЯ ПСИХОЛОГА ==========
     if PSYCHOLOGIST_ID and user_id == PSYCHOLOGIST_ID:
         # Кнопка "Список"
         if text == "Список":
@@ -138,7 +135,7 @@ def handle_message(user_id, text, event_id=None):
                 return
             msg_data = get_message_by_id(msg_id)
             if not msg_data:
-                send_msg(user_id, f"❌ Ошибка: обращение #{msg_id} существует в списке, но не найдено в БД. Попробуйте позже.", keyboard=psychologist_keyboard())
+                send_msg(user_id, f"❌ Ошибка: обращение #{msg_id} существует в списке, но не найдено в БД.", keyboard=psychologist_keyboard())
                 return
             if msg_data["answered"]:
                 send_msg(user_id, f"⚠️ Обращение #{msg_id} уже было отвечено.", keyboard=psychologist_keyboard())
@@ -164,20 +161,21 @@ def handle_message(user_id, text, event_id=None):
                 mark_message_answered(msg_id, answer_text)
                 send_msg(user_id, f"✅ Обращение #{msg_id} отмечено как отвеченное.", keyboard=psychologist_keyboard())
             except Exception as e:
-                send_msg(user_id, f"❌ Не удалось отправить ответ: {e}\nОбращение осталось в списке неотвеченных.", keyboard=psychologist_keyboard())
+                send_msg(user_id, f"❌ Не удалось отправить ответ: {e}", keyboard=psychologist_keyboard())
             return
 
         # Если ничего не подошло
         send_msg(user_id, "Используй кнопки меню или команду 'ответ <id> <текст>'", keyboard=psychologist_keyboard())
         return
 
-    # ========== ОБЫЧНЫЕ ПОЛЬЗОВАТЕЛИ ==========
+    # ========== ОБРАБОТКА ДЛЯ ОБЫЧНЫХ ПОЛЬЗОВАТЕЛЕЙ ==========
     # Отмена
     if text.lower() in ["отмена", "cancel", "стоп", "выйти"]:
         clear_user_state(user_id)
         send_msg(user_id, "❌ Действие отменено. Возвращаюсь в главное меню.", keyboard=main_keyboard())
         return
 
+    # Нежелательная лексика
     if contains_bad_words(text):
         send_msg(user_id, "Пожалуйста, избегай нецензурной лексики. Я здесь, чтобы помогать.")
         return
@@ -190,7 +188,7 @@ def handle_message(user_id, text, event_id=None):
     state = user_data["state"]
     temp_data = user_data["temp_data"]
 
-    # Сценарии
+    # Если пользователь в сценарии
     if state != "main":
         try:
             response, keyboard_type = scenarios.process_scenario(
