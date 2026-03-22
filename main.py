@@ -5,6 +5,7 @@ import random
 import traceback
 import datetime
 import re
+from collections import defaultdict
 
 from config import VK_TOKEN, GROUP_ID, PSYCHOLOGIST_ID, ADMIN_ID
 from database import (init_db, get_user, set_user, save_psychologist_message,
@@ -22,16 +23,7 @@ vk_session = vk_api.VkApi(token=VK_TOKEN)
 vk = vk_session.get_api()
 longpoll = VkLongPoll(vk_session)
 
-QUOTES = [
-    "Каждый день — новая возможность стать лучше.",
-    "Не бойся трудностей — они делают тебя сильнее.",
-    "Ты способен на большее, чем думаешь.",
-    "Улыбка — самый простой способ изменить мир вокруг.",
-    "Верь в себя и свои силы.",
-    "Не сравнивай себя с другими — сравнивай себя с собой вчерашним.",
-    "Маленькие шаги ведут к большим победам.",
-    "Твоя единственная граница — это ты сам."
-]
+QUOTES = [ ... ]  # без изменений
 
 def send_msg(user_id, text, keyboard=None):
     try:
@@ -66,15 +58,25 @@ def notify_psychologist(user_id, message_text, contact, is_anonymous, msg_id):
         send_msg(PSYCHOLOGIST_ID, text, keyboard=psychologist_keyboard())
 
 BAD_WORDS = ['мат', 'ругательство', 'хуй', 'пизда', 'бля', 'сука']
-
 def contains_bad_words(text):
     for word in BAD_WORDS:
         if word in text.lower():
             return True
     return False
 
+# Словарь для защиты от дублей
+last_processed = defaultdict(float)
+
 def handle_message(user_id, text):
-    # ========== СПЕЦИАЛЬНАЯ ОБРАБОТКА ДЛЯ ПСИХОЛОГА ==========
+    # Защита от дублирования
+    key = (user_id, text)
+    now = time.time()
+    if now - last_processed[key] < 2:
+        print(f"⚠️ Пропущен дубль от {user_id}: {text}")
+        return
+    last_processed[key] = now
+
+    # ========== ПСИХОЛОГ ==========
     if PSYCHOLOGIST_ID and user_id == PSYCHOLOGIST_ID:
         # Кнопка "Список"
         if text == "Список":
@@ -111,7 +113,7 @@ def handle_message(user_id, text):
             send_msg(user_id, instr, keyboard=psychologist_keyboard())
             return
 
-        # Команда "ответ <id> <текст>"
+        # Команда "ответ"
         match = re.match(r'^ответ\s+(\d+)\s+(.+)$', text, re.IGNORECASE | re.DOTALL)
         if match:
             msg_id = int(match.group(1))
@@ -136,23 +138,23 @@ def handle_message(user_id, text):
                         random_id=0
                     )
                     send_msg(user_id, f"✅ Ответ отправлен пользователю (ID: {user_to_send}).", keyboard=psychologist_keyboard())
+                    mark_message_answered(msg_id, answer_text)
+                    send_msg(user_id, f"✅ Обращение #{msg_id} отмечено как отвеченное.", keyboard=psychologist_keyboard())
                 except Exception as e:
                     send_msg(user_id, f"❌ Не удалось отправить ответ пользователю: {e}", keyboard=psychologist_keyboard())
                     return
             else:
                 if contact:
-                    send_msg(user_id, f"ℹ️ Обращение анонимное. Контакт для связи: {contact}\n"
+                    send_msg(user_id, f"ℹ️ Обращение #{msg_id} анонимное. Контакт для связи: {contact}\n"
                                       f"Пожалуйста, свяжитесь с пользователем напрямую.\n"
-                                      f"После этого обращение будет отмечено как отвеченное.", keyboard=psychologist_keyboard())
+                                      f"После этого отметьте обращение как отвеченное командой 'ответ {msg_id} [текст]'.", keyboard=psychologist_keyboard())
+                    # Не отмечаем автоматически
                 else:
                     send_msg(user_id, f"❌ Обращение #{msg_id} анонимно и без контакта. Ответить невозможно.", keyboard=psychologist_keyboard())
                     return
-
-            mark_message_answered(msg_id, answer_text)
-            send_msg(user_id, f"✅ Обращение #{msg_id} отмечено как отвеченное.", keyboard=psychologist_keyboard())
             return
 
-        # Если ничего не подошло – показываем меню и выходим
+        # Если ничего не подошло
         send_msg(user_id, "Используй кнопки меню или команду 'ответ <id> <текст>'", keyboard=psychologist_keyboard())
         return
 
@@ -175,6 +177,7 @@ def handle_message(user_id, text):
     state = user_data["state"]
     temp_data = user_data["temp_data"]
 
+    # Сценарии
     if state != "main":
         try:
             response, keyboard_type = scenarios.process_scenario(
@@ -251,13 +254,23 @@ def handle_message(user_id, text):
                      "• 'Плохое настроение' - получить совет\n"
                      "• 'Буллинг' - узнать как защитить себя\n"
                      "• 'Тревога' - справиться с беспокойством\n"
-                     "• 'Самоорганизация' - составить план дел\n\n"
+                     "• 'Самоорганизация' - составить план дел\n"
+                     "• 'Советы' - получить советы по самопомощи\n\n"
                      "❗ Чтобы выйти из любого диалога, напиши 'Отмена'")
         send_msg(user_id, help_text, keyboard=main_keyboard())
+    elif text.lower() == "советы":
+        advice = ("📚 *Советы по самопомощи*\n\n"
+                  "• Если чувствуешь тревогу – сделай дыхательное упражнение: вдох 4 сек, задержка 7, выдох 8.\n"
+                  "• Сделай короткую прогулку на свежем воздухе.\n"
+                  "• Напиши свои мысли в блокнот, чтобы разобраться в чувствах.\n"
+                  "• Поговори с другом или близким человеком.\n"
+                  "• Если нужно, обратись к психологу через меню.")
+        send_msg(user_id, advice, keyboard=main_keyboard())
     elif text == "Отмена":
         clear_user_state(user_id)
         send_msg(user_id, "Главное меню:", keyboard=main_keyboard())
     else:
+        # Дополнительные команды
         if text.lower() in ["плохое настроение", "настроение", "грусть"]:
             response, _ = scenarios.bad_mood(user_id, "start", None)
             send_msg(user_id, response, keyboard=yes_no_keyboard())
