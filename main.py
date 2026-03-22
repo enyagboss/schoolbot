@@ -59,6 +59,7 @@ def notify_psychologist(user_id, message_text, contact, is_anonymous, msg_id):
             text += f"👤 Отправитель: Аноним\n"
         else:
             text += f"👤 Отправитель: Пользователь {user_id}\n"
+        # Контакт не показываем для анонимных
         if not is_anonymous and contact:
             text += f"📞 Контакт для связи: {contact}\n"
         text += f"\n💬 Текст:\n{message_text}\n\n"
@@ -163,7 +164,7 @@ def handle_message(user_id, text):
                 send_msg(user_id, f"❌ Не удалось отправить ответ: {e}\nОбращение осталось в списке неотвеченных.", keyboard=psychologist_keyboard())
             return
 
-        # Если ничего не подошло
+        # Если ничего не подошло – показываем меню психолога
         send_msg(user_id, "Используй кнопки меню или команду 'ответ <id> <текст>'", keyboard=psychologist_keyboard())
         return
 
@@ -176,6 +177,17 @@ def handle_message(user_id, text):
 
     if contains_bad_words(text):
         send_msg(user_id, "Пожалуйста, избегай нецензурной лексики. Я здесь, чтобы помогать.")
+        return
+
+    # Команда "Советы"
+    if text.lower() == "советы":
+        advice = ("📚 *Советы по самопомощи*\n\n"
+                  "• Если чувствуешь тревогу – сделай дыхательное упражнение: вдох 4 сек, задержка 7, выдох 8.\n"
+                  "• Сделай короткую прогулку на свежем воздухе.\n"
+                  "• Напиши свои мысли в блокнот, чтобы разобраться в чувствах.\n"
+                  "• Поговори с другом или близким человеком.\n"
+                  "• Если нужно, обратись к психологу через меню.")
+        send_msg(user_id, advice, keyboard=main_keyboard())
         return
 
     user_data = get_user(user_id)
@@ -222,33 +234,42 @@ def handle_message(user_id, text):
     # Главное меню
     if text.lower() in ["начать", "старт", "привет", "здравствуй"]:
         send_msg(user_id, "Привет! Я твой помощник. Выбери тему:", keyboard=main_keyboard())
+        return
     elif text == "Стресс":
         response, _ = scenarios.stress_test(user_id, "start", None)
         send_msg(user_id, response, keyboard=yes_no_keyboard())
+        return
     elif text == "Конфликты":
         response, _ = scenarios.conflict_help(user_id, "start", None)
         send_msg(user_id, response)
+        return
     elif text == "Мотивация":
         send_msg(user_id, "Хочешь получить совет, как повысить мотивацию к учёбе?", keyboard=yes_no_keyboard())
         set_user(user_id, state="motivation_plan")
+        return
     elif text == "ЗОЖ":
         send_msg(user_id, "Хочешь узнать, как поддерживать здоровье и хорошее самочувствие?", keyboard=yes_no_keyboard())
         set_user(user_id, state="healthy_plan")
+        return
     elif text == "Психолог":
         clear_user_state(user_id)
         send_msg(user_id, "Ты можешь анонимно рассказать о своих переживаниях, и я помогу связаться со школьным психологом.\nНапиши 'Да', чтобы начать, или выбери другой пункт.", keyboard=yes_no_keyboard())
         set_user(user_id, state="anonymous_message")
+        return
     elif text == "Цитата":
         quote = random.choice(QUOTES)
         send_msg(user_id, quote, keyboard=main_keyboard())
         send_msg(user_id, "Хочешь получать такие цитаты каждый день?", keyboard=yes_no_keyboard())
         set_user(user_id, state="quote_subscribe")
+        return
     elif text == "Сон":
         response, _ = scenarios.sleep_reminder(user_id, "start", None)
         send_msg(user_id, response, keyboard=yes_no_keyboard())
+        return
     elif text == "Организация":
         response, _ = scenarios.organize_plan(user_id, "start", None)
         send_msg(user_id, response, keyboard=yes_no_keyboard())
+        return
     elif text == "Помощь":
         help_text = ("🤖 Я твой школьный помощник!\n\n"
                      "📋 Я умею:\n"
@@ -267,33 +288,32 @@ def handle_message(user_id, text):
                      "• 'Советы' - получить советы по самопомощи\n\n"
                      "❗ Чтобы выйти из любого диалога, напиши 'Отмена'")
         send_msg(user_id, help_text, keyboard=main_keyboard())
-    elif text.lower() == "советы":
-        advice = ("📚 *Советы по самопомощи*\n\n"
-                  "• Если чувствуешь тревогу – сделай дыхательное упражнение: вдох 4 сек, задержка 7, выдох 8.\n"
-                  "• Сделай короткую прогулку на свежем воздухе.\n"
-                  "• Напиши свои мысли в блокнот, чтобы разобраться в чувствах.\n"
-                  "• Поговори с другом или близким человеком.\n"
-                  "• Если нужно, обратись к психологу через меню.")
-        send_msg(user_id, advice, keyboard=main_keyboard())
+        return
     elif text == "Отмена":
         clear_user_state(user_id)
         send_msg(user_id, "Главное меню:", keyboard=main_keyboard())
+        return
     else:
         # Дополнительные команды
         if text.lower() in ["плохое настроение", "настроение", "грусть"]:
             response, _ = scenarios.bad_mood(user_id, "start", None)
             send_msg(user_id, response, keyboard=yes_no_keyboard())
+            return
         elif text.lower() in ["буллинг", "травля", "обижают"]:
             response, _ = scenarios.bullying(user_id, "start", None)
             send_msg(user_id, response, keyboard=yes_no_keyboard())
+            return
         elif text.lower() in ["тревога", "беспокойство", "волнение"]:
             response, _ = scenarios.anxiety(user_id, "start", None)
             send_msg(user_id, response, keyboard=yes_no_keyboard())
+            return
         elif text.lower() in ["самоорганизация", "план", "дела"]:
             response, _ = scenarios.self_organization(user_id, "start", None)
             send_msg(user_id, response, keyboard=yes_no_keyboard())
+            return
         else:
             send_msg(user_id, "Я не понял. Выбери одну из кнопок или напиши 'Помощь':", keyboard=main_keyboard())
+            return
 
 def main():
     print("=" * 50)
