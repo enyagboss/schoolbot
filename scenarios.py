@@ -53,7 +53,6 @@ def process_scenario(user_id, message, state, temp_data, notify_func=None, save_
     else:
         return None, None
 
-# -------------------- Стресс-тест --------------------
 def stress_test(user_id, message, temp_data, notify_func=None, save_func=None):
     if temp_data is None:
         questions = [
@@ -96,7 +95,6 @@ def stress_test(user_id, message, temp_data, notify_func=None, save_func=None):
         else:
             yes_count = sum(1 for a in answers if a == "да")
             if yes_count >= 3:
-                # Переходим в состояние ожидания ответа про дыхание
                 set_user(user_id, state="stress_breathing", temp_data=None)
                 return ("По твоим ответам возможно высокий уровень стресса.\n"
                         "Рекомендую попробовать техники расслабления: глубокое дыхание, прогулку.\n"
@@ -106,7 +104,6 @@ def stress_test(user_id, message, temp_data, notify_func=None, save_func=None):
                 return ("Отлично! Ты хорошо справляешься со стрессом.\n"
                         "Продолжай в том же духе и не забывай отдыхать."), None
 
-# -------------------- Обработка ответа про дыхание --------------------
 def stress_breathing(user_id, message, temp_data, notify_func=None, save_func=None):
     if message.lower() == "да":
         breathing = (
@@ -123,7 +120,6 @@ def stress_breathing(user_id, message, temp_data, notify_func=None, save_func=No
         set_user(user_id, state="main", temp_data=None)
         return "Хорошо. Если захочешь узнать позже, выбери 'Стресс' снова.", None
 
-# -------------------- Конфликты --------------------
 def conflict_help(user_id, message, temp_data, notify_func=None, save_func=None):
     if temp_data is None:
         set_user(user_id, state="conflict_help", temp_data=json.dumps({"step": 1}))
@@ -169,11 +165,10 @@ def conflict_help(user_id, message, temp_data, notify_func=None, save_func=None)
                 return "Понял. Если передумаешь, я здесь.", None
         return None, None
 
-# -------------------- Мотивация к учебе --------------------
 def motivation_plan(user_id, message, temp_data, notify_func=None, save_func=None):
     if temp_data is None:
         set_user(user_id, state="motivation_plan", temp_data=json.dumps({"step": 1}))
-        return "Хочешь получить совет, как повысить мотивацию к учебе?", "yes_no"
+        return "Хочешь получить совет, как повысить мотивацию к учёбе?", "yes_no"
     else:
         data = safe_json_loads(temp_data)
         if data is None:
@@ -223,7 +218,6 @@ def motivation_plan(user_id, message, temp_data, notify_func=None, save_func=Non
                 return "Пожалуйста, выбери из предложенных вариантов.", "study_time"
         return None, None
 
-# -------------------- Здоровый образ жизни --------------------
 def healthy_plan(user_id, message, temp_data, notify_func=None, save_func=None):
     if temp_data is None:
         set_user(user_id, state="healthy_plan", temp_data=json.dumps({"step": 1}))
@@ -274,7 +268,6 @@ def healthy_plan(user_id, message, temp_data, notify_func=None, save_func=None):
                 return "Пожалуйста, выбери из предложенных вариантов.", "physical"
         return None, None
 
-# -------------------- Анонимное обращение к психологу --------------------
 def anonymous_message(user_id, message, temp_data, notify_func=None, save_func=None):
     if temp_data is None:
         set_user(user_id, state="anonymous_message", temp_data=json.dumps({"step": 1}))
@@ -327,7 +320,6 @@ def anonymous_message(user_id, message, temp_data, notify_func=None, save_func=N
             set_user(user_id, state="main", temp_data=None)
             return "Произошла ошибка. Давай начнём сначала. Выбери тему в меню.", None
 
-# -------------------- Подписка на цитаты --------------------
 def quote_subscribe(user_id, message, temp_data, notify_func=None, save_func=None):
     if temp_data is None:
         set_user(user_id, state="quote_subscribe", temp_data=json.dumps({}))
@@ -342,7 +334,6 @@ def quote_subscribe(user_id, message, temp_data, notify_func=None, save_func=Non
         else:
             return "Пожалуйста, выбери время: Утром / Днём / Вечером", "time"
 
-# -------------------- Организация учебного пространства --------------------
 def organize_plan(user_id, message, temp_data, notify_func=None, save_func=None):
     if temp_data is None:
         set_user(user_id, state="organize_plan", temp_data=json.dumps({"step": 1}))
@@ -389,7 +380,6 @@ def organize_plan(user_id, message, temp_data, notify_func=None, save_func=None)
                 return "Понял. Если захочешь получить советы, напиши 'Организация' снова.", None
         return None, None
 
-# -------------------- Здоровый сон --------------------
 def sleep_reminder(user_id, message, temp_data, notify_func=None, save_func=None):
     if temp_data is None:
         set_user(user_id, state="sleep_reminder", temp_data=json.dumps({"step": 1}))
@@ -439,7 +429,6 @@ def sleep_reminder(user_id, message, temp_data, notify_func=None, save_func=None
                 return "Понял. Если захочешь настроить напоминание позже, напиши 'Сон'.", None
         return None, None
 
-# -------------------- Помощь при плохом настроении --------------------
 def bad_mood(user_id, message, temp_data, notify_func=None, save_func=None):
     if temp_data is None:
         set_user(user_id, state="bad_mood", temp_data=json.dumps({"step": 1}))
@@ -496,7 +485,6 @@ def bad_mood(user_id, message, temp_data, notify_func=None, save_func=None):
                 return "Понял. Если захочешь поговорить снова, я здесь.", None
         return None, None
 
-# -------------------- Профилактика буллинга --------------------
 def bullying(user_id, message, temp_data, notify_func=None, save_func=None):
     if temp_data is None:
         set_user(user_id, state="bullying", temp_data=json.dumps({"step": 1}))
@@ -537,7 +525,6 @@ def bullying(user_id, message, temp_data, notify_func=None, save_func=None):
                 return "Понял. Если захочешь обсудить, я здесь.", None
         return None, None
 
-# -------------------- Поддержка при тревоге --------------------
 def anxiety(user_id, message, temp_data, notify_func=None, save_func=None):
     if temp_data is None:
         set_user(user_id, state="anxiety", temp_data=json.dumps({"step": 1}))
@@ -578,7 +565,6 @@ def anxiety(user_id, message, temp_data, notify_func=None, save_func=None):
                 return "Понял. Если захочешь получить совет, напиши 'Тревога' снова.", None
         return None, None
 
-# -------------------- Трудности с самоорганизацией --------------------
 def self_organization(user_id, message, temp_data, notify_func=None, save_func=None):
     if temp_data is None:
         set_user(user_id, state="self_organization", temp_data=json.dumps({"step": 1}))
